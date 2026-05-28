@@ -1,0 +1,150 @@
+# Zippering
+
+**A universal, LLM-assisted schema-reconciliation engine.** Point it at any
+source — a CRM export, a vendor CSV, a JSON API, a webhook payload — and for
+every incoming column it decides whether to **JOIN** an existing canonical
+column, **APPEND** a new one, or flag it **UNCLEAR** for review. It normalizes
+each value to the canonical type and writes a wide reconciled row plus an
+append-only audit of every routing decision.
+
+It's the "zipper" because it merges many differently-shaped sources into one
+coherent canonical schema, one column at a time.
+
+```
+heterogeneous source rows ──┐
+   crm_export: "Company"     │
+   vendor_csv: "company_nm"  ├──►  Zippering  ──►  canonical record
+   api: "organization"       │     (cache → lookup → LLM)     { company_name: ... }
+                             ─┘     + append-only decision log
+```
+
+## Why
+
+Every integration project re-solves the same problem: incoming fields never
+line up with your canonical model, and gluing them together by hand doesn't
+scale. Zippering makes that routing decision once per `(record, source,
+column)`, caches it, and records *why* — so the next row with the same shape is
+free and every decision is auditable.
+
+## Install
+
+```bash
+pip install zippering            # library
+pip install "zippering[api]"     # + the FastAPI HTTP service
+```
+
+Set your key once — the Anthropic integration reads it from the environment,
+consistently across the library and the API:
+
+```bash
+export ANTHROPIC_API_KEY=sk-ant-...
+```
+
+## Quickstart
+
+```python
+import asyncio
+from zippering import IngestRow, IngestValue, MemoryStorage, HaikuRouter, zipper_upsert
+
+async def main():
+    storage = MemoryStorage()
+    storage.add_global_column("company_name", "text", "Display name of the account")
+    storage.add_global_column("employee_count", "integer", "Headcount")
+    router = HaikuRouter()  # uses ANTHROPIC_API_KEY
+
+    row = IngestRow(
+        pkey="acct_123",
+        source="crm_export",
+        external_id="crm_123",
+        occurred_at="2026-05-28T00:00:00Z",
+        columns={
+            "Company":   IngestValue(value="Acme Inc", source_data_type="text"),
+            "Headcount": IngestValue(value="240",      source_data_type="text"),
+        },
+    )
+
+    result = await zipper_upsert(row, storage, router)
+    for d in result.decisions:
+        print(d.source_column, "->", d.canonical_name, f"({d.verdict})")
+
+    signal = await storage.get_zippered_row("default", "acct_123")
+    print(signal.columns)   # {'company_name': 'Acme Inc', 'employee_count': 240}
+
+asyncio.run(main())
+```
+
+## The three routing tiers
+
+For each incoming column, in order:
+
+1. **Cache** — if a decision already exists for `(pkey, source, source_column)`,
+   reuse it. No LLM call. Routing is decided once and stays stable.
+2. **Lookup** *(optional)* — a deterministic, rule-based matcher you inject.
+   The core ships the `Lookup` Protocol but **no** registries; bring your own
+   (codes, regexes, exact-name maps) for the matches you never want an LLM to
+   second-guess.
+3. **Router** — an LLM (`HaikuRouter`, backed by Anthropic) decides JOIN /
+   APPEND / UNCLEAR using a forced tool-call with a strict schema.
+
+## Everything is pluggable
+
+| Seam        | Protocol  | Ships                                  | Bring your own |
+|-------------|-----------|----------------------------------------|----------------|
+| Persistence | `Storage` | `MemoryStorage`, `SQLiteStorage`       | Postgres, Snowflake, … |
+| Routing     | `Router`  | `HaikuRouter` (Anthropic, key from env)| any LLM/provider |
+| Tier-1      | `Lookup`  | Protocol only                          | your registries |
+| Types       | —         | 7 universal types + coercion registry  | `register_coercer()` |
+
+Add a data type without forking core:
+
+```python
+from zippering import register_coercer, UnsafeCoercion
+
+def to_cents(v):
+    try:
+        return round(float(v) * 100)
+    except (TypeError, ValueError):
+        raise UnsafeCoercion("text", "cents", v)
+
+register_coercer("text", "cents", to_cents)
+```
+
+Swap in persistent SQLite:
+
+```python
+from zippering import SQLiteStorage
+storage = SQLiteStorage("./zippering.db")   # schema applied automatically
+```
+
+## HTTP API
+
+```bash
+pip install "zippering[api]"
+uvicorn zippering.api:app --reload
+```
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `POST` | `/v1/ingest` | Ingest one `IngestRow` |
+| `GET`  | `/v1/signals/{workspace_key}/{pkey}` | Latest reconciled row |
+| `GET`  | `/v1/timeline/{workspace_key}/{pkey}?since=ISO` | Rows since a timestamp |
+| `GET`  | `/v1/decisions/{workspace_key}/{pkey}/{canonical_name}` | Decision audit |
+
+## Invariants
+
+- **`zippering_decisions` is append-only.** Overrides and normalizer flags
+  insert *new* rows; nothing is updated in place. The latest row by
+  `decided_at` is the active routing.
+- **Routing is cached per `(pkey, source, source_column)`** — stable and cheap.
+- **Unsafe coercions never crash ingest** — they append a `needs_review`
+  decision and skip the value.
+
+## Origin
+
+Zippering started as a TypeScript engine inside Dugout and a Python port inside
+EHRzipper (a healthcare data product). This package is the generic core, with
+all domain-specific extensions removed, so it drops into any project.
+
+## License
+
+MIT
