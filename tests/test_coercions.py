@@ -20,6 +20,13 @@ def test_text_to_numeric():
     assert normalize("3.14", "text", "numeric") == pytest.approx(3.14)
 
 
+def test_text_to_numeric_rejects_non_finite():
+    # nan/inf don't round-trip through standard JSON — must be rejected.
+    for bad in ("nan", "inf", "-inf", "Infinity"):
+        with pytest.raises(UnsafeCoercion):
+            normalize(bad, "text", "numeric")
+
+
 def test_text_to_boolean():
     assert normalize("yes", "text", "boolean") is True
     assert normalize("0", "text", "boolean") is False

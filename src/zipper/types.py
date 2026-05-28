@@ -113,10 +113,10 @@ class IngestRow(BaseModel):
     """Input to zipper_upsert(): one incoming integration row."""
 
     workspace_key: str = "default"
-    pkey: str
-    source: str
+    pkey: str = Field(min_length=1)
+    source: str = Field(min_length=1)
     external_id: str | None = None
-    occurred_at: str  # every signal must carry a time
+    occurred_at: str = Field(min_length=1)  # every signal must carry a time
     columns: dict[str, IngestValue]
 
 

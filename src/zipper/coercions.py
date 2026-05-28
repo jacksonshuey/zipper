@@ -14,6 +14,7 @@ can route it to human review instead of crashing the ingest.
 
 from __future__ import annotations
 
+import math
 from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
@@ -58,9 +59,14 @@ def _text_to_numeric(v: Any) -> float:
     if not isinstance(v, (str, int, float)):
         raise UnsafeCoercion("text", "numeric", v)
     try:
-        return float(v)
+        f = float(v)
     except (ValueError, TypeError):
         raise UnsafeCoercion("text", "numeric", v) from None
+    # Reject nan/inf: they don't round-trip through standard JSON and would
+    # corrupt the JSON-encoded value columns / break downstream consumers.
+    if not math.isfinite(f):
+        raise UnsafeCoercion("text", "numeric", v, "non-finite (nan/inf) not allowed")
+    return f
 
 
 def _integer_to_timestamp(v: Any) -> str:
