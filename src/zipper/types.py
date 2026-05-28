@@ -9,9 +9,10 @@ types layer them on in their own code.
 
 from __future__ import annotations
 
+from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 # ---------------------------------------------------------------------------
 # String union types
@@ -118,6 +119,19 @@ class IngestRow(BaseModel):
     external_id: str | None = None
     occurred_at: str = Field(min_length=1)  # every signal must carry a time
     columns: dict[str, IngestValue]
+
+    @field_validator("occurred_at")
+    @classmethod
+    def _validate_occurred_at(cls, v: str) -> str:
+        # Timeline ordering is lexicographic on this string, so it must be a
+        # real ISO 8601 timestamp or ordering silently breaks.
+        try:
+            datetime.fromisoformat(v.replace("Z", "+00:00"))
+        except ValueError:
+            raise ValueError(
+                f"occurred_at must be an ISO 8601 timestamp, got {v!r}"
+            ) from None
+        return v
 
 
 # ---------------------------------------------------------------------------

@@ -97,6 +97,25 @@ async def main():
 asyncio.run(main())
 ```
 
+## Reading reconciled data
+
+Signals are stored per `(source, external_id)`, so one record can have several
+rows (one per source occurrence). Two ways to read:
+
+```python
+from zipper import get_zippered_row, get_merged_record
+
+# The single latest signal row (one source's columns):
+latest = await get_zippered_row("default", "acct_123", storage)
+
+# All sources collapsed into one wide record, newest-wins per column:
+record = await get_merged_record("default", "acct_123", storage)
+```
+
+When two columns in the *same* row route to the same canonical name, the last
+value wins and a `needs_review` decision (`decided_by="collision"`) is recorded
+so the overwrite is auditable.
+
 ## The three routing tiers
 
 For each incoming column, in order:

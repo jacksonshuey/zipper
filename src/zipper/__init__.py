@@ -40,6 +40,7 @@ from zipper.config import Settings
 from zipper.engine import (
     ZipperUpsertResult,
     get_decision_history,
+    get_merged_record,
     get_zippered_row,
     get_zippered_timeline,
     zipper_upsert,
@@ -76,6 +77,7 @@ __all__ = [
     "get_zippered_row",
     "get_zippered_timeline",
     "get_decision_history",
+    "get_merged_record",
     # routing
     "Router",
     "HaikuRouter",

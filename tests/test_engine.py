@@ -6,6 +6,7 @@ from zipper import (
     MemoryStorage,
     SQLiteStorage,
     get_decision_history,
+    get_merged_record,
     zipper_upsert,
 )
 from zipper.lookup import LookupVerdict
@@ -13,6 +14,73 @@ from zipper.router import AssessInputs
 from zipper.types import RoutingVerdict
 
 pytestmark = pytest.mark.asyncio
+
+
+def _const_router(canonical_name: str):
+    """A router that maps every column to one fixed canonical name."""
+
+    class _R:
+        def __init__(self) -> None:
+            self.calls: list = []
+
+        async def assess(self, inputs: AssessInputs) -> RoutingVerdict:
+            self.calls.append(inputs)
+            return RoutingVerdict(
+                verdict="append",
+                canonical_name=canonical_name,
+                is_global_target=False,
+                similarity_score=0.3,
+                reason="const",
+            )
+
+    return _R()
+
+
+async def test_canonical_collision_flags_review():
+    storage = MemoryStorage()
+    router = _const_router("company")  # both columns -> "company"
+    row = IngestRow(
+        pkey="acct_1",
+        source="crm",
+        external_id="e",
+        occurred_at="2026-05-28T00:00:00Z",
+        columns={
+            "Company": IngestValue(value="A", source_data_type="text"),
+            "Org": IngestValue(value="B", source_data_type="text"),
+        },
+    )
+    result = await zipper_upsert(row, storage, router)
+    collisions = [d for d in result.decisions if d.decided_by == "collision"]
+    assert len(collisions) == 1 and collisions[0].needs_review
+    signal = storage.get_zippered_row("default", "acct_1")
+    assert signal is not None
+    assert signal.columns == {"company": "B"}  # last value wins, single key
+
+
+async def test_get_merged_record_across_sources(fake_router):
+    storage = MemoryStorage()
+    storage.add_global_column("company_name", "text")
+    storage.add_global_column("employee_count", "integer")
+
+    await zipper_upsert(
+        IngestRow(
+            pkey="acct_1", source="crm", external_id="a",
+            occurred_at="2026-05-28T00:00:00Z",
+            columns={"company_name": IngestValue(value="Acme", source_data_type="text")},
+        ),
+        storage, fake_router,
+    )
+    await zipper_upsert(
+        IngestRow(
+            pkey="acct_1", source="hr", external_id="b",
+            occurred_at="2026-05-28T01:00:00Z",
+            columns={"employee_count": IngestValue(value="240", source_data_type="text")},
+        ),
+        storage, fake_router,
+    )
+
+    merged = await get_merged_record("default", "acct_1", storage)
+    assert merged == {"company_name": "Acme", "employee_count": 240}
 
 
 def _row(**cols) -> IngestRow:

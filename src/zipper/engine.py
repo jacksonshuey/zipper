@@ -200,6 +200,33 @@ async def zipper_upsert(
             normalized_value = normalize(
                 ingest_val.value, ingest_val.source_data_type, target_data_type
             )
+            if decision.canonical_name in canonical_columns:
+                # Two source columns in THIS row routed to the same canonical
+                # name. Last value wins, but flag it so the silent overwrite is
+                # auditable rather than invisible.
+                collision = await asyncio.to_thread(
+                    storage.insert_decision,
+                    {
+                        "workspace_key": workspace_key,
+                        "pkey": row.pkey,
+                        "source": row.source,
+                        "source_column": source_col,
+                        "source_data_type": ingest_val.source_data_type,
+                        "source_description": ingest_val.source_description,
+                        "source_samples": samples or None,
+                        "verdict": decision.verdict,
+                        "canonical_name": decision.canonical_name,
+                        "is_global_target": decision.is_global_target,
+                        "similarity_score": decision.similarity_score,
+                        "reason": (
+                            f"canonical '{decision.canonical_name}' was already "
+                            "populated by another column in this row; last value wins"
+                        ),
+                        "needs_review": True,
+                        "decided_by": "collision",
+                    },
+                )
+                all_decisions.append(collision)
             canonical_columns[decision.canonical_name] = normalized_value
         except UnsafeCoercion as err:
             # Append a needs_review row (never update) and skip the value.
@@ -267,3 +294,23 @@ async def get_decision_history(
     return await asyncio.to_thread(
         storage.get_decision_history, workspace_key, pkey, canonical_name
     )
+
+
+async def get_merged_record(
+    workspace_key: str, pkey: str, storage: Storage
+) -> dict[str, Any]:
+    """
+    Merge every signal row for (workspace, pkey) into one wide canonical record.
+
+    Signals are stored per ``(source, external_id)``; this collapses them into a
+    single dict, newest-wins per canonical column. Use it when you want "the
+    current state of this record" across all sources rather than one source's
+    latest row (which is what ``get_zippered_row`` returns).
+    """
+    rows = await asyncio.to_thread(
+        storage.get_zippered_timeline, workspace_key, pkey, ""
+    )
+    merged: dict[str, Any] = {}
+    for r in sorted(rows, key=lambda s: s.occurred_at):  # oldest → newest
+        merged.update(r.columns)
+    return merged

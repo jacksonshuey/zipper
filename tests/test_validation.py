@@ -27,6 +27,16 @@ def test_empty_occurred_at_rejected():
         IngestRow(pkey="p", source="s", occurred_at="", columns=_cols())
 
 
+def test_non_iso_occurred_at_rejected():
+    with pytest.raises(ValidationError):
+        IngestRow(pkey="p", source="s", occurred_at="totally not a date", columns=_cols())
+
+
+def test_iso_occurred_at_with_z_accepted():
+    row = IngestRow(pkey="p", source="s", occurred_at="2026-05-28T00:00:00Z", columns=_cols())
+    assert row.occurred_at == "2026-05-28T00:00:00Z"
+
+
 def test_invalid_data_type_rejected():
     with pytest.raises(ValidationError):
         IngestValue(value=1, source_data_type="not-a-type")
