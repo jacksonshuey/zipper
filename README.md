@@ -28,10 +28,25 @@ free and every decision is auditable.
 
 ## Install
 
+Install straight from the repo (the package name on PyPI is taken, so zipper
+is distributed from GitHub):
+
 ```bash
-pip install zipper            # library
-pip install "zipper[api]"     # + the FastAPI HTTP service
+# library
+pip install "git+https://github.com/jacksonshuey/zipper.git"
+
+# + the FastAPI HTTP service
+pip install "zipper[api] @ git+https://github.com/jacksonshuey/zipper.git"
 ```
+
+Or from a local clone:
+
+```bash
+pip install .          # library
+pip install ".[api]"   # + HTTP service
+```
+
+Requires Python 3.11+. Pin a release with `...zipper.git@v0.1.0`.
 
 ## Anthropic API key
 
