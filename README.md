@@ -163,15 +163,34 @@ storage = SQLiteStorage("./zipper.db")   # schema applied automatically
 
 ```bash
 pip install "zipper[api]"
+export ZIPPER_API_KEYS="client-one-token,client-two-token"   # bearer tokens
 uvicorn zipper.api:app --reload
 ```
 
-| Method | Path | Description |
-|--------|------|-------------|
-| `POST` | `/v1/ingest` | Ingest one `IngestRow` |
-| `GET`  | `/v1/signals/{workspace_key}/{pkey}` | Latest reconciled row |
-| `GET`  | `/v1/timeline/{workspace_key}/{pkey}?since=ISO` | Rows since a timestamp |
-| `GET`  | `/v1/decisions/{workspace_key}/{pkey}/{canonical_name}` | Decision audit |
+| Method | Path | Auth | Description |
+|--------|------|------|-------------|
+| `GET`  | `/health` | none | Liveness probe |
+| `POST` | `/v1/ingest` | bearer | Ingest one `IngestRow` |
+| `GET`  | `/v1/signals/{workspace_key}/{pkey}` | bearer | Latest reconciled row |
+| `GET`  | `/v1/timeline/{workspace_key}/{pkey}?since=ISO` | bearer | Rows since a timestamp |
+| `GET`  | `/v1/decisions/{workspace_key}/{pkey}/{canonical_name}` | bearer | Decision audit |
+
+### Authentication
+
+The `/v1/*` routes require a bearer token. Configure accepted client tokens via
+`ZIPPER_API_KEYS` (comma-separated), then send `Authorization: Bearer <token>`:
+
+```bash
+curl -H "Authorization: Bearer client-one-token" \
+  http://localhost:8000/v1/signals/default/acct_123
+```
+
+Auth is **secure by default**: if `ZIPPER_API_KEYS` is unset, the protected
+routes return `503` rather than serving open. To intentionally run without auth
+(e.g. behind your own gateway), set `ZIPPER_ALLOW_NO_AUTH=1`. Tokens are
+compared in constant time and never logged or persisted. This is coarse,
+service-level auth — pair it with TLS and a rate limit before exposing the API
+publicly.
 
 ## Invariants
 

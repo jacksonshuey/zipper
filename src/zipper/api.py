@@ -18,7 +18,7 @@ import os
 from typing import Any
 
 try:
-    from fastapi import FastAPI, HTTPException
+    from fastapi import Depends, FastAPI, HTTPException
     from pydantic import BaseModel
 except ModuleNotFoundError as exc:  # pragma: no cover
     raise ModuleNotFoundError(
@@ -26,6 +26,7 @@ except ModuleNotFoundError as exc:  # pragma: no cover
         'pip install "zipper[api]"'
     ) from exc
 
+from zipper.auth import require_auth
 from zipper.engine import (
     get_decision_history,
     get_zippered_row,
@@ -66,14 +67,18 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/v1/ingest", response_model=UpsertResponse)
+@app.post("/v1/ingest", response_model=UpsertResponse, dependencies=[Depends(require_auth)])
 async def ingest(row: IngestRow) -> UpsertResponse:
     """Ingest one source row through the zipper method."""
     result = await zipper_upsert(row, _storage, _get_router())
     return UpsertResponse(signal_id=result.signal_id, decisions=result.decisions)
 
 
-@app.get("/v1/signals/{workspace_key}/{pkey}", response_model=ZipperedSignalRow)
+@app.get(
+    "/v1/signals/{workspace_key}/{pkey}",
+    response_model=ZipperedSignalRow,
+    dependencies=[Depends(require_auth)],
+)
 async def latest_signal(workspace_key: str, pkey: str) -> ZipperedSignalRow:
     """Most recent reconciled row for (workspace_key, pkey)."""
     signal = await get_zippered_row(workspace_key, pkey, _storage)
@@ -82,7 +87,7 @@ async def latest_signal(workspace_key: str, pkey: str) -> ZipperedSignalRow:
     return signal
 
 
-@app.get("/v1/timeline/{workspace_key}/{pkey}")
+@app.get("/v1/timeline/{workspace_key}/{pkey}", dependencies=[Depends(require_auth)])
 async def timeline(
     workspace_key: str, pkey: str, since: str
 ) -> list[ZipperedSignalRow]:
@@ -90,7 +95,10 @@ async def timeline(
     return await get_zippered_timeline(workspace_key, pkey, since, _storage)
 
 
-@app.get("/v1/decisions/{workspace_key}/{pkey}/{canonical_name}")
+@app.get(
+    "/v1/decisions/{workspace_key}/{pkey}/{canonical_name}",
+    dependencies=[Depends(require_auth)],
+)
 async def decisions(
     workspace_key: str, pkey: str, canonical_name: str
 ) -> list[ZipperingDecisionRow]:

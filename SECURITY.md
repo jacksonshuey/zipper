@@ -46,14 +46,24 @@ are folded into the LLM routing prompt. Hardening:
 
 ## Hosting the HTTP API
 
-The bundled FastAPI app (`zipper[api]`) has **no built-in authentication or rate
-limiting**. If you expose it publicly:
+The bundled FastAPI app (`zipper[api]`) ships **coarse, service-level bearer
+auth** and **secure-by-default** behavior:
 
-- Put it behind your own auth (e.g. a bearer token per client) and a rate limit —
-  otherwise anyone who can reach it can drive Anthropic calls on your key.
+- Set `ZIPPER_API_KEYS` (comma-separated client tokens). Requests to `/v1/*`
+  must send `Authorization: Bearer <token>`; tokens are compared in constant
+  time (`secrets.compare_digest`) and are never logged or persisted.
+- If `ZIPPER_API_KEYS` is unset, the protected routes return `503` rather than
+  serving open. To deliberately run without auth (behind your own gateway), set
+  `ZIPPER_ALLOW_NO_AUTH=1`. `/health` is always public.
+
+It has **no built-in rate limiting** and the bearer tokens are shared secrets,
+not per-user identities. If you expose it publicly:
+
+- Add a rate limit — auth alone won't stop an authorized client from driving
+  Anthropic calls on your key.
 - Keep the Anthropic key server-side (env/secret store); do not have clients send
   raw Anthropic keys over the wire.
-- Terminate TLS.
+- Terminate TLS so bearer tokens aren't sent in the clear.
 
 For most use cases, prefer consuming zipper as a **library** so each user holds
 their own key and no service is exposed.
