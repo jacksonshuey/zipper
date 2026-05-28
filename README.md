@@ -148,6 +148,13 @@ uvicorn zipper.api:app --reload
 - **Unsafe coercions never crash ingest** — they append a `needs_review`
   decision and skip the value.
 
+## Security
+
+zipper is BYO-key (never stored or logged), bounds untrusted source data before
+it reaches the model, uses parameterized SQL, and ships thread-safe storage. The
+bundled HTTP API has no built-in auth — gate it yourself before exposing it. See
+[SECURITY.md](SECURITY.md) for the full model.
+
 ## Origin
 
 Zippering started as a TypeScript engine inside Dugout and a Python port inside

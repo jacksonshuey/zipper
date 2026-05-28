@@ -45,7 +45,13 @@ from zipper.engine import (
     zipper_upsert,
 )
 from zipper.lookup import Lookup, LookupVerdict
-from zipper.router import AssessInputs, HaikuRouter, Router, assess_column_routing
+from zipper.router import (
+    AssessInputs,
+    HaikuRouter,
+    MissingAPIKeyError,
+    Router,
+    assess_column_routing,
+)
 from zipper.storage import Storage
 from zipper.storage_memory import MemoryStorage
 from zipper.storage_sqlite import SQLiteStorage
@@ -75,6 +81,7 @@ __all__ = [
     "HaikuRouter",
     "AssessInputs",
     "assess_column_routing",
+    "MissingAPIKeyError",
     # lookup
     "Lookup",
     "LookupVerdict",

@@ -4,17 +4,25 @@ SQLite implementation of the Storage protocol.
 Stdlib sqlite3 only — no ORM. JSON columns are stored as TEXT and round-tripped
 via json.dumps/loads. UUIDs are generated in Python. The bundled schema.sql is
 applied automatically on construction.
+
+Thread safety: a single connection is shared with ``check_same_thread=False``,
+so every public method is serialized behind a re-entrant lock. The engine drives
+storage from a thread pool (``asyncio.to_thread``); the lock makes concurrent
+``zipper_upsert`` calls safe against one instance.
 """
 
 from __future__ import annotations
 
+import functools
 import json
 import sqlite3
+import threading
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
 from importlib import resources
 from pathlib import Path
-from typing import Any
+from typing import Any, Concatenate, ParamSpec, TypeVar, cast
 
 from zipper.types import (
     GlobalCanonicalColumn,
@@ -22,6 +30,22 @@ from zipper.types import (
     ZipperingDecisionRow,
     ZipperingSchemaRow,
 )
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+def _synchronized(
+    method: Callable[Concatenate[SQLiteStorage, _P], _R],
+) -> Callable[Concatenate[SQLiteStorage, _P], _R]:
+    """Serialize a SQLiteStorage method behind the instance lock."""
+
+    @functools.wraps(method)
+    def wrapper(self: SQLiteStorage, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+        with self._lock:
+            return method(self, *args, **kwargs)
+
+    return cast("Callable[Concatenate[SQLiteStorage, _P], _R]", wrapper)
 
 
 def _now_iso() -> str:
@@ -106,21 +130,25 @@ class SQLiteStorage:
     """
     SQLite-backed Storage. Pass ``:memory:`` (default) for an ephemeral store
     or a file path for persistence. The schema is applied on construction.
+    All public methods are thread-safe.
     """
 
     def __init__(self, db_path: str | Path = ":memory:") -> None:
+        self._lock = threading.RLock()
         self._conn = sqlite3.connect(str(db_path), check_same_thread=False)
         self._conn.row_factory = sqlite3.Row
         self._conn.execute("PRAGMA journal_mode=WAL")
         self._conn.execute("PRAGMA foreign_keys=ON")
         self._conn.executescript(_load_schema_sql())
 
+    @_synchronized
     def apply_migration(self, sql: str) -> None:
         """Execute an additional SQL script (idempotent via IF NOT EXISTS)."""
         self._conn.executescript(sql)
 
     # -- Reads --------------------------------------------------------------
 
+    @_synchronized
     def load_globals(self, workspace_key: str) -> list[GlobalCanonicalColumn]:
         cur = self._conn.execute(
             "SELECT * FROM global_canonical_columns WHERE workspace_key = ?",
@@ -128,6 +156,7 @@ class SQLiteStorage:
         )
         return [_row_to_global(r) for r in cur.fetchall()]
 
+    @_synchronized
     def load_pkey_schema(
         self, workspace_key: str, pkey: str
     ) -> list[ZipperingSchemaRow]:
@@ -137,6 +166,7 @@ class SQLiteStorage:
         )
         return [_row_to_schema(r) for r in cur.fetchall()]
 
+    @_synchronized
     def latest_decision_for_column(
         self, workspace_key: str, pkey: str, source: str, source_column: str
     ) -> ZipperingDecisionRow | None:
@@ -149,6 +179,7 @@ class SQLiteStorage:
         row = cur.fetchone()
         return _row_to_decision(row) if row else None
 
+    @_synchronized
     def get_decision_history(
         self, workspace_key: str, pkey: str, canonical_name: str
     ) -> list[ZipperingDecisionRow]:
@@ -160,6 +191,7 @@ class SQLiteStorage:
         )
         return [_row_to_decision(r) for r in cur.fetchall()]
 
+    @_synchronized
     def get_zippered_row(
         self, workspace_key: str, pkey: str
     ) -> ZipperedSignalRow | None:
@@ -171,6 +203,7 @@ class SQLiteStorage:
         row = cur.fetchone()
         return _row_to_signal(row) if row else None
 
+    @_synchronized
     def get_zippered_timeline(
         self, workspace_key: str, pkey: str, since_iso: str
     ) -> list[ZipperedSignalRow]:
@@ -184,6 +217,7 @@ class SQLiteStorage:
 
     # -- Writes -------------------------------------------------------------
 
+    @_synchronized
     def insert_decision(self, decision: dict[str, Any]) -> ZipperingDecisionRow:
         row_id = _new_uuid()
         decided_at = decision.get("decided_at") or _now_iso()
@@ -224,6 +258,7 @@ class SQLiteStorage:
         ).fetchone()
         return _row_to_decision(row)
 
+    @_synchronized
     def upsert_schema_row(self, schema_row: dict[str, Any]) -> None:
         row_id = _new_uuid()
         now = _now_iso()
@@ -255,6 +290,7 @@ class SQLiteStorage:
         )
         self._conn.commit()
 
+    @_synchronized
     def upsert_signal(self, signal: dict[str, Any]) -> str:
         cols_json = json.dumps(signal.get("columns") or {})
         now = _now_iso()
@@ -300,6 +336,7 @@ class SQLiteStorage:
         self._conn.commit()
         return row_id
 
+    @_synchronized
     def add_global_column(
         self,
         name: str,
@@ -328,4 +365,5 @@ class SQLiteStorage:
         self._conn.commit()
 
     def close(self) -> None:
-        self._conn.close()
+        with self._lock:
+            self._conn.close()

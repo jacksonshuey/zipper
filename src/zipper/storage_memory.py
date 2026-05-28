@@ -1,16 +1,20 @@
 """
 In-memory implementation of the Storage protocol.
 
-Zero dependencies, holds everything in plain lists/dicts. Ideal for tests,
-quickstarts, and notebooks. Not persistent and not thread-safe across
-instances — each instance is its own isolated store.
+Zero dependencies, holds everything in plain lists. Ideal for tests,
+quickstarts, and notebooks. Not persistent. Each instance is its own isolated
+store; all public methods are serialized behind a lock so concurrent
+``zipper_upsert`` calls against one instance are safe.
 """
 
 from __future__ import annotations
 
+import functools
+import threading
 import uuid
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, Concatenate, ParamSpec, TypeVar, cast
 
 from zipper.types import (
     GlobalCanonicalColumn,
@@ -18,6 +22,22 @@ from zipper.types import (
     ZipperingDecisionRow,
     ZipperingSchemaRow,
 )
+
+_P = ParamSpec("_P")
+_R = TypeVar("_R")
+
+
+def _synchronized(
+    method: Callable[Concatenate[MemoryStorage, _P], _R],
+) -> Callable[Concatenate[MemoryStorage, _P], _R]:
+    """Serialize a MemoryStorage method behind the instance lock."""
+
+    @functools.wraps(method)
+    def wrapper(self: MemoryStorage, *args: _P.args, **kwargs: _P.kwargs) -> _R:
+        with self._lock:
+            return method(self, *args, **kwargs)
+
+    return cast("Callable[Concatenate[MemoryStorage, _P], _R]", wrapper)
 
 
 def _now_iso() -> str:
@@ -34,6 +54,7 @@ class MemoryStorage:
     """Dict/list-backed Storage. Construct empty; register globals as needed."""
 
     def __init__(self) -> None:
+        self._lock = threading.RLock()
         self._globals: list[GlobalCanonicalColumn] = []
         self._schema: list[ZipperingSchemaRow] = []
         self._decisions: list[ZipperingDecisionRow] = []
@@ -41,9 +62,11 @@ class MemoryStorage:
 
     # -- Reads --------------------------------------------------------------
 
+    @_synchronized
     def load_globals(self, workspace_key: str) -> list[GlobalCanonicalColumn]:
         return [g for g in self._globals if g.workspace_key == workspace_key]
 
+    @_synchronized
     def load_pkey_schema(
         self, workspace_key: str, pkey: str
     ) -> list[ZipperingSchemaRow]:
@@ -53,6 +76,7 @@ class MemoryStorage:
             if s.workspace_key == workspace_key and s.pkey == pkey
         ]
 
+    @_synchronized
     def latest_decision_for_column(
         self, workspace_key: str, pkey: str, source: str, source_column: str
     ) -> ZipperingDecisionRow | None:
@@ -68,6 +92,7 @@ class MemoryStorage:
             return None
         return max(matches, key=lambda d: d.decided_at)
 
+    @_synchronized
     def get_decision_history(
         self, workspace_key: str, pkey: str, canonical_name: str
     ) -> list[ZipperingDecisionRow]:
@@ -80,6 +105,7 @@ class MemoryStorage:
         ]
         return sorted(matches, key=lambda d: d.decided_at, reverse=True)
 
+    @_synchronized
     def get_zippered_row(
         self, workspace_key: str, pkey: str
     ) -> ZipperedSignalRow | None:
@@ -92,6 +118,7 @@ class MemoryStorage:
             return None
         return max(matches, key=lambda s: s.occurred_at)
 
+    @_synchronized
     def get_zippered_timeline(
         self, workspace_key: str, pkey: str, since_iso: str
     ) -> list[ZipperedSignalRow]:
@@ -106,6 +133,7 @@ class MemoryStorage:
 
     # -- Writes -------------------------------------------------------------
 
+    @_synchronized
     def insert_decision(self, decision: dict[str, Any]) -> ZipperingDecisionRow:
         row = ZipperingDecisionRow(
             id=_new_uuid(),
@@ -128,6 +156,7 @@ class MemoryStorage:
         self._decisions.append(row)
         return row
 
+    @_synchronized
     def upsert_schema_row(self, schema_row: dict[str, Any]) -> None:
         now = _now_iso()
         for i, existing in enumerate(self._schema):
@@ -161,6 +190,7 @@ class MemoryStorage:
             )
         )
 
+    @_synchronized
     def upsert_signal(self, signal: dict[str, Any]) -> str:
         now = _now_iso()
         external_id = signal.get("external_id")
@@ -191,6 +221,7 @@ class MemoryStorage:
 
     # -- Convenience --------------------------------------------------------
 
+    @_synchronized
     def add_global_column(
         self,
         name: str,

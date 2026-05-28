@@ -17,6 +17,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import os
 from dataclasses import dataclass, field
 from typing import Any, Protocol, cast, runtime_checkable
 
@@ -33,6 +34,16 @@ from zipper.types import (
     ZipperingDataType,
     ZipperingSchemaRow,
 )
+
+# Defensive bounds on untrusted source data folded into the prompt. A malicious
+# or malformed source can't blow up the request past these caps.
+MAX_SAMPLES = 10
+MAX_SAMPLE_CHARS = 500
+MAX_DESCRIPTION_CHARS = 1_000
+
+
+class MissingAPIKeyError(RuntimeError):
+    """Raised when no Anthropic API key can be resolved for HaikuRouter."""
 
 # ---------------------------------------------------------------------------
 # Tool schema (forced via tool_choice — guarantees structured output)
@@ -104,8 +115,15 @@ class HaikuRouter:
             self._client = client
         elif api_key is not None:
             self._client = anthropic.AsyncAnthropic(api_key=api_key)
-        else:
+        elif os.environ.get("ANTHROPIC_API_KEY"):
             self._client = anthropic.AsyncAnthropic()
+        else:
+            raise MissingAPIKeyError(
+                "No Anthropic API key found. Either pass it explicitly — "
+                "HaikuRouter(api_key='sk-ant-...') — or set the ANTHROPIC_API_KEY "
+                "environment variable. zipper never stores or logs the key; it is "
+                "used only to construct the Anthropic client."
+            )
         self._model = model
         self._timeout_ms = timeout_ms
         self._max_tokens = max_tokens
@@ -159,17 +177,29 @@ async def assess_column_routing(
 # ---------------------------------------------------------------------------
 
 
+def _truncate(text: str, limit: int) -> str:
+    return text if len(text) <= limit else text[:limit] + "…(truncated)"
+
+
 def _build_prompt(inputs: AssessInputs) -> str:
-    desc_line = (
-        inputs.source_description.strip()
-        if inputs.source_description and inputs.source_description.strip()
-        else "(none provided)"
-    )
-    samples_line = (
-        ", ".join(json.dumps(s) for s in inputs.source_samples)
-        if inputs.source_samples
-        else "(no samples)"
-    )
+    if inputs.source_description and inputs.source_description.strip():
+        desc_line = _truncate(
+            inputs.source_description.strip(), MAX_DESCRIPTION_CHARS
+        )
+    else:
+        desc_line = "(none provided)"
+
+    if inputs.source_samples:
+        bounded = [
+            _truncate(json.dumps(s), MAX_SAMPLE_CHARS)
+            for s in inputs.source_samples[:MAX_SAMPLES]
+        ]
+        omitted = len(inputs.source_samples) - len(bounded)
+        samples_line = ", ".join(bounded)
+        if omitted > 0:
+            samples_line += f"  (+{omitted} more omitted)"
+    else:
+        samples_line = "(no samples)"
 
     if inputs.candidates_global:
         global_section = "\n".join(

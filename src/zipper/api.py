@@ -32,7 +32,7 @@ from zipper.engine import (
     get_zippered_timeline,
     zipper_upsert,
 )
-from zipper.router import HaikuRouter
+from zipper.router import HaikuRouter, Router
 from zipper.storage_sqlite import SQLiteStorage
 from zipper.types import (
     IngestRow,
@@ -40,10 +40,20 @@ from zipper.types import (
     ZipperingDecisionRow,
 )
 
-app = FastAPI(title="Zippering", version="0.1.0")
+app = FastAPI(title="Zipper", version="0.1.0")
 
 _storage = SQLiteStorage(os.environ.get("ZIPPER_DB_PATH", ":memory:"))
-_router = HaikuRouter()
+
+# Built lazily on first request so importing this module never requires a key.
+# Tests inject a fake by setting ``api._router`` directly.
+_router: Router | None = None
+
+
+def _get_router() -> Router:
+    global _router
+    if _router is None:
+        _router = HaikuRouter()
+    return _router
 
 
 class UpsertResponse(BaseModel):
@@ -59,7 +69,7 @@ def health() -> dict[str, str]:
 @app.post("/v1/ingest", response_model=UpsertResponse)
 async def ingest(row: IngestRow) -> UpsertResponse:
     """Ingest one source row through the zipper method."""
-    result = await zipper_upsert(row, _storage, _router)
+    result = await zipper_upsert(row, _storage, _get_router())
     return UpsertResponse(signal_id=result.signal_id, decisions=result.decisions)
 
 
