@@ -56,10 +56,14 @@ auth** and **secure-by-default** behavior:
   serving open. To deliberately run without auth (behind your own gateway), set
   `ZIPPER_ALLOW_NO_AUTH=1`. `/health` is always public.
 
-It has **no built-in rate limiting** and the bearer tokens are shared secrets,
-not per-user identities. If you expose it publicly:
+It ships an **opt-in, in-process rate limiter** (`ZIPPER_RATE_LIMIT` per
+`ZIPPER_RATE_WINDOW_S`, keyed per bearer token or client host; `429` +
+`Retry-After` when exceeded). Note its limits: the window is per-process (the
+effective global cap is `ZIPPER_RATE_LIMIT × worker_count`), and the bearer
+tokens are shared secrets, not per-user identities. If you expose it publicly:
 
-- Add a rate limit — auth alone won't stop an authorized client from driving
+- Enable the rate limit (or front the API with a gateway limiter for a single
+  shared cap) — auth alone won't stop an authorized client from driving
   Anthropic calls on your key.
 - Keep the Anthropic key server-side (env/secret store); do not have clients send
   raw Anthropic keys over the wire.

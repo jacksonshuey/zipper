@@ -189,8 +189,23 @@ Auth is **secure by default**: if `ZIPPER_API_KEYS` is unset, the protected
 routes return `503` rather than serving open. To intentionally run without auth
 (e.g. behind your own gateway), set `ZIPPER_ALLOW_NO_AUTH=1`. Tokens are
 compared in constant time and never logged or persisted. This is coarse,
-service-level auth — pair it with TLS and a rate limit before exposing the API
-publicly.
+service-level auth — pair it with TLS before exposing the API publicly.
+
+### Rate limiting
+
+Set `ZIPPER_RATE_LIMIT` to cap requests per caller (per bearer token, or per
+client host when running open) within `ZIPPER_RATE_WINDOW_S` seconds (default
+60). Exceeding it returns `429` with a `Retry-After` header. Unset (or `<= 0`)
+means unlimited.
+
+```bash
+export ZIPPER_RATE_LIMIT=120        # 120 requests…
+export ZIPPER_RATE_WINDOW_S=60      # …per 60s, per caller
+```
+
+The window is in-process: behind multiple workers/instances each holds its own,
+so the effective global limit is `ZIPPER_RATE_LIMIT × worker_count`. For one
+shared limit, front the API with a gateway limiter or a shared store.
 
 ## Invariants
 

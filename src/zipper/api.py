@@ -33,6 +33,7 @@ from zipper.engine import (
     get_zippered_timeline,
     zipper_upsert,
 )
+from zipper.ratelimit import enforce_rate_limit
 from zipper.router import HaikuRouter, Router
 from zipper.storage_sqlite import SQLiteStorage
 from zipper.types import (
@@ -67,7 +68,11 @@ def health() -> dict[str, str]:
     return {"status": "ok"}
 
 
-@app.post("/v1/ingest", response_model=UpsertResponse, dependencies=[Depends(require_auth)])
+@app.post(
+    "/v1/ingest",
+    response_model=UpsertResponse,
+    dependencies=[Depends(require_auth), Depends(enforce_rate_limit)],
+)
 async def ingest(row: IngestRow) -> UpsertResponse:
     """Ingest one source row through the zipper method."""
     result = await zipper_upsert(row, _storage, _get_router())
@@ -77,7 +82,7 @@ async def ingest(row: IngestRow) -> UpsertResponse:
 @app.get(
     "/v1/signals/{workspace_key}/{pkey}",
     response_model=ZipperedSignalRow,
-    dependencies=[Depends(require_auth)],
+    dependencies=[Depends(require_auth), Depends(enforce_rate_limit)],
 )
 async def latest_signal(workspace_key: str, pkey: str) -> ZipperedSignalRow:
     """Most recent reconciled row for (workspace_key, pkey)."""
@@ -87,7 +92,10 @@ async def latest_signal(workspace_key: str, pkey: str) -> ZipperedSignalRow:
     return signal
 
 
-@app.get("/v1/timeline/{workspace_key}/{pkey}", dependencies=[Depends(require_auth)])
+@app.get(
+    "/v1/timeline/{workspace_key}/{pkey}",
+    dependencies=[Depends(require_auth), Depends(enforce_rate_limit)],
+)
 async def timeline(
     workspace_key: str, pkey: str, since: str
 ) -> list[ZipperedSignalRow]:
@@ -97,7 +105,7 @@ async def timeline(
 
 @app.get(
     "/v1/decisions/{workspace_key}/{pkey}/{canonical_name}",
-    dependencies=[Depends(require_auth)],
+    dependencies=[Depends(require_auth), Depends(enforce_rate_limit)],
 )
 async def decisions(
     workspace_key: str, pkey: str, canonical_name: str
