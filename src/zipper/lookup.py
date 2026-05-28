@@ -17,7 +17,7 @@ from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
-from zippering.types import ZipperingDataType
+from zipper.types import ZipperingDataType
 
 
 class LookupVerdict(BaseModel):

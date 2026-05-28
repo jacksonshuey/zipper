@@ -22,12 +22,12 @@ from typing import Any, Protocol, cast, runtime_checkable
 
 import anthropic
 
-from zippering.config import (
+from zipper.config import (
     DEFAULT_MAX_TOKENS,
     DEFAULT_MODEL,
     DEFAULT_TIMEOUT_MS,
 )
-from zippering.types import (
+from zipper.types import (
     GlobalCanonicalColumn,
     RoutingVerdict,
     ZipperingDataType,

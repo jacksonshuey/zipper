@@ -2,13 +2,13 @@
 Optional HTTP API for Zippering (FastAPI).
 
 Exposes the engine over HTTP so non-Python projects can use the zipper method
-too. Install the ``api`` extra:  pip install "zippering[api]"
+too. Install the ``api`` extra:  pip install "zipper[api]"
 
 Run:
-    uvicorn zippering.api:app --reload
+    uvicorn zipper.api:app --reload
 
 A single process-wide SQLiteStorage and HaikuRouter are created at startup.
-Set ZIPPERING_DB_PATH to persist (default: in-memory). The router reads
+Set ZIPPER_DB_PATH to persist (default: in-memory). The router reads
 ANTHROPIC_API_KEY from the environment, exactly like the library.
 """
 
@@ -23,18 +23,18 @@ try:
 except ModuleNotFoundError as exc:  # pragma: no cover
     raise ModuleNotFoundError(
         'The HTTP API requires the "api" extra. Install with: '
-        'pip install "zippering[api]"'
+        'pip install "zipper[api]"'
     ) from exc
 
-from zippering.engine import (
+from zipper.engine import (
     get_decision_history,
     get_zippered_row,
     get_zippered_timeline,
     zipper_upsert,
 )
-from zippering.router import HaikuRouter
-from zippering.storage_sqlite import SQLiteStorage
-from zippering.types import (
+from zipper.router import HaikuRouter
+from zipper.storage_sqlite import SQLiteStorage
+from zipper.types import (
     IngestRow,
     ZipperedSignalRow,
     ZipperingDecisionRow,
@@ -42,7 +42,7 @@ from zippering.types import (
 
 app = FastAPI(title="Zippering", version="0.1.0")
 
-_storage = SQLiteStorage(os.environ.get("ZIPPERING_DB_PATH", ":memory:"))
+_storage = SQLiteStorage(os.environ.get("ZIPPER_DB_PATH", ":memory:"))
 _router = HaikuRouter()
 
 

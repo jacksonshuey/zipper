@@ -6,7 +6,7 @@ Runnable quickstart. Requires ANTHROPIC_API_KEY in the environment.
 
 import asyncio
 
-from zippering import HaikuRouter, IngestRow, IngestValue, MemoryStorage, zipper_upsert
+from zipper import HaikuRouter, IngestRow, IngestValue, MemoryStorage, zipper_upsert
 
 
 async def main() -> None:

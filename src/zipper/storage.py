@@ -18,7 +18,7 @@ from __future__ import annotations
 
 from typing import Any, Protocol, runtime_checkable
 
-from zippering.types import (
+from zipper.types import (
     GlobalCanonicalColumn,
     ZipperedSignalRow,
     ZipperingDecisionRow,

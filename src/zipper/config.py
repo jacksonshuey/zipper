@@ -41,11 +41,11 @@ class Settings:
     def from_env(cls) -> Settings:
         """Build Settings from environment variables, falling back to defaults."""
         return cls(
-            model=os.environ.get("ZIPPERING_MODEL", DEFAULT_MODEL),
-            timeout_ms=int(os.environ.get("ZIPPERING_TIMEOUT_MS", DEFAULT_TIMEOUT_MS)),
-            max_tokens=int(os.environ.get("ZIPPERING_MAX_TOKENS", DEFAULT_MAX_TOKENS)),
+            model=os.environ.get("ZIPPER_MODEL", DEFAULT_MODEL),
+            timeout_ms=int(os.environ.get("ZIPPER_TIMEOUT_MS", DEFAULT_TIMEOUT_MS)),
+            max_tokens=int(os.environ.get("ZIPPER_MAX_TOKENS", DEFAULT_MAX_TOKENS)),
             workspace_key=os.environ.get(
-                "ZIPPERING_WORKSPACE_KEY", DEFAULT_WORKSPACE_KEY
+                "ZIPPER_WORKSPACE_KEY", DEFAULT_WORKSPACE_KEY
             ),
             anthropic_api_key=os.environ.get("ANTHROPIC_API_KEY"),
         )

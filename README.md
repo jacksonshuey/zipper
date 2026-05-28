@@ -1,4 +1,4 @@
-# Zippering
+# Zipper
 
 **A universal, LLM-assisted schema-reconciliation engine.** Point it at any
 source — a CRM export, a vendor CSV, a JSON API, a webhook payload — and for
@@ -29,22 +29,31 @@ free and every decision is auditable.
 ## Install
 
 ```bash
-pip install zippering            # library
-pip install "zippering[api]"     # + the FastAPI HTTP service
+pip install zipper            # library
+pip install "zipper[api]"     # + the FastAPI HTTP service
 ```
 
-Set your key once — the Anthropic integration reads it from the environment,
-consistently across the library and the API:
+## Anthropic API key
+
+Zipper never hardcodes or stores a key. You supply it one of two ways:
+
+```python
+# 1. Pass it as a field (explicit, per-router):
+router = HaikuRouter(api_key="sk-ant-...")
+
+# 2. Or omit it and let the Anthropic SDK read ANTHROPIC_API_KEY from the env:
+router = HaikuRouter()
+```
 
 ```bash
-export ANTHROPIC_API_KEY=sk-ant-...
+export ANTHROPIC_API_KEY=sk-ant-...   # used when no api_key field is passed
 ```
 
 ## Quickstart
 
 ```python
 import asyncio
-from zippering import IngestRow, IngestValue, MemoryStorage, HaikuRouter, zipper_upsert
+from zipper import IngestRow, IngestValue, MemoryStorage, HaikuRouter, zipper_upsert
 
 async def main():
     storage = MemoryStorage()
@@ -98,7 +107,7 @@ For each incoming column, in order:
 Add a data type without forking core:
 
 ```python
-from zippering import register_coercer, UnsafeCoercion
+from zipper import register_coercer, UnsafeCoercion
 
 def to_cents(v):
     try:
@@ -112,15 +121,15 @@ register_coercer("text", "cents", to_cents)
 Swap in persistent SQLite:
 
 ```python
-from zippering import SQLiteStorage
-storage = SQLiteStorage("./zippering.db")   # schema applied automatically
+from zipper import SQLiteStorage
+storage = SQLiteStorage("./zipper.db")   # schema applied automatically
 ```
 
 ## HTTP API
 
 ```bash
-pip install "zippering[api]"
-uvicorn zippering.api:app --reload
+pip install "zipper[api]"
+uvicorn zipper.api:app --reload
 ```
 
 | Method | Path | Description |

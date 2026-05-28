@@ -16,7 +16,7 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
-from zippering.types import (
+from zipper.types import (
     GlobalCanonicalColumn,
     ZipperedSignalRow,
     ZipperingDecisionRow,
@@ -35,7 +35,7 @@ def _new_uuid() -> str:
 
 
 def _load_schema_sql() -> str:
-    return resources.files("zippering").joinpath("schema.sql").read_text()
+    return resources.files("zipper").joinpath("schema.sql").read_text()
 
 
 def _row_to_global(row: sqlite3.Row) -> GlobalCanonicalColumn:

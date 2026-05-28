@@ -1,6 +1,6 @@
 import pytest
 
-from zippering import UnsafeCoercion, normalize, register_coercer
+from zipper import UnsafeCoercion, normalize, register_coercer
 
 
 def test_identity_passthrough():

@@ -20,11 +20,11 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from zippering.coercions import UnsafeCoercion, normalize
-from zippering.lookup import Lookup
-from zippering.router import AssessInputs, Router
-from zippering.storage import Storage
-from zippering.types import (
+from zipper.coercions import UnsafeCoercion, normalize
+from zipper.lookup import Lookup
+from zipper.router import AssessInputs, Router
+from zipper.storage import Storage
+from zipper.types import (
     IngestRow,
     ZipperedSignalRow,
     ZipperingDataType,

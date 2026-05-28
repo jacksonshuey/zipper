@@ -9,7 +9,7 @@ wide reconciled row plus an append-only decision audit.
 Quickstart
 ----------
     import asyncio
-    from zippering import (
+    from zipper import (
         IngestRow, IngestValue, MemoryStorage, HaikuRouter, zipper_upsert,
     )
 
@@ -35,21 +35,21 @@ Pluggable everywhere
 - Coercions : register_coercer() to add types without forking core
 """
 
-from zippering.coercions import UnsafeCoercion, normalize, register_coercer
-from zippering.config import Settings
-from zippering.engine import (
+from zipper.coercions import UnsafeCoercion, normalize, register_coercer
+from zipper.config import Settings
+from zipper.engine import (
     ZipperUpsertResult,
     get_decision_history,
     get_zippered_row,
     get_zippered_timeline,
     zipper_upsert,
 )
-from zippering.lookup import Lookup, LookupVerdict
-from zippering.router import AssessInputs, HaikuRouter, Router, assess_column_routing
-from zippering.storage import Storage
-from zippering.storage_memory import MemoryStorage
-from zippering.storage_sqlite import SQLiteStorage
-from zippering.types import (
+from zipper.lookup import Lookup, LookupVerdict
+from zipper.router import AssessInputs, HaikuRouter, Router, assess_column_routing
+from zipper.storage import Storage
+from zipper.storage_memory import MemoryStorage
+from zipper.storage_sqlite import SQLiteStorage
+from zipper.types import (
     GlobalCanonicalColumn,
     IngestRow,
     IngestValue,

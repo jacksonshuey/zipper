@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import pytest
 
-from zippering.router import AssessInputs, HaikuRouter
+from zipper.router import AssessInputs, HaikuRouter
 
 
 class _Block:

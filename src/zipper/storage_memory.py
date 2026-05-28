@@ -12,7 +12,7 @@ import uuid
 from datetime import UTC, datetime
 from typing import Any
 
-from zippering.types import (
+from zipper.types import (
     GlobalCanonicalColumn,
     ZipperedSignalRow,
     ZipperingDecisionRow,

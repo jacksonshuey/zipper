@@ -6,8 +6,8 @@ from collections.abc import Callable
 
 import pytest
 
-from zippering.router import AssessInputs
-from zippering.types import RoutingVerdict
+from zipper.router import AssessInputs
+from zipper.types import RoutingVerdict
 
 
 class FakeRouter:

@@ -8,7 +8,7 @@ fastapi = pytest.importorskip("fastapi")
 from fastapi.testclient import TestClient  # noqa: E402
 
 from tests.conftest import FakeRouter  # noqa: E402
-from zippering import api  # noqa: E402
+from zipper import api  # noqa: E402
 
 
 @pytest.fixture

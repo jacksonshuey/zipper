@@ -18,7 +18,7 @@ from collections.abc import Callable
 from datetime import UTC, datetime
 from typing import Any
 
-from zippering.types import ZipperingDataType
+from zipper.types import ZipperingDataType
 
 
 class UnsafeCoercion(Exception):  # noqa: N818 — mirrors the original TS name

@@ -1,6 +1,6 @@
 import pytest
 
-from zippering import (
+from zipper import (
     IngestRow,
     IngestValue,
     MemoryStorage,
@@ -8,9 +8,9 @@ from zippering import (
     get_decision_history,
     zipper_upsert,
 )
-from zippering.lookup import LookupVerdict
-from zippering.router import AssessInputs
-from zippering.types import RoutingVerdict
+from zipper.lookup import LookupVerdict
+from zipper.router import AssessInputs
+from zipper.types import RoutingVerdict
 
 pytestmark = pytest.mark.asyncio
 
