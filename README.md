@@ -225,9 +225,10 @@ bundled HTTP API has no built-in auth — gate it yourself before exposing it. S
 
 ## Origin
 
-Zippering started as a TypeScript engine inside Dugout and a Python port inside
-EHRzipper (a healthcare data product). This package is the generic core, with
-all domain-specific extensions removed, so it drops into any project.
+Zippering began as a domain-specific reconciliation engine and was extracted
+into this generic core, with all domain logic removed, so it drops into any
+project. [EHRzipper](https://github.com/jacksonshuey/EHRzipper) — a healthcare
+real-world-evidence data product — is one extension built on it.
 
 ## License
 

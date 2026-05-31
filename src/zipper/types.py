@@ -1,8 +1,9 @@
 """
 Pydantic v2 models — the generic Zippering type system.
 
-These mirror the original Dugout TypeScript interfaces. Healthcare/domain
-extensions are deliberately NOT included here; the core ships the seven
+These mirror the original TypeScript interfaces the engine grew from.
+Healthcare/domain extensions are deliberately NOT included here; the core
+ships the seven
 universal data types and nothing domain-specific. Projects that need extra
 types layer them on in their own code.
 """
