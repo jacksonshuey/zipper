@@ -27,6 +27,16 @@ ZipperingDataType = Literal[
     "jsonb",
     "string[]",
 ]
+"""The seven universal canonical types the core ships and knows how to coerce.
+
+Data-type fields below are typed ``str``, not this Literal, on purpose: a
+consuming project can register its own coercers (see ``register_coercer``) and
+declare domain-specific types — e.g. a healthcare port adding
+``quantity_with_unit`` or ``coded_value`` — without forking these models. Keep
+new values to short, lowercase, snake_case identifiers. ``ZipperingDataType``
+remains the documented canonical set and the type the core guarantees support
+for.
+"""
 
 ZipperingVerdict = Literal["join", "append", "unclear"]
 
@@ -42,7 +52,7 @@ class GlobalCanonicalColumn(BaseModel):
     id: str
     workspace_key: str
     name: str
-    data_type: ZipperingDataType
+    data_type: str  # canonical set: ZipperingDataType; projects may extend
     description: str | None = None
     semantic_tags: list[str] = Field(default_factory=list)
     created_at: str
@@ -55,7 +65,7 @@ class ZipperingSchemaRow(BaseModel):
     workspace_key: str
     pkey: str
     canonical_name: str
-    data_type: ZipperingDataType
+    data_type: str  # canonical set: ZipperingDataType; projects may extend
     description: str | None = None
     is_global: bool = False
     source_origin: str | None = None
@@ -106,7 +116,7 @@ class IngestValue(BaseModel):
     """One column's worth of incoming data from a source integration."""
 
     value: Any
-    source_data_type: ZipperingDataType
+    source_data_type: str  # canonical set: ZipperingDataType; projects may extend
     source_description: str | None = None
 
 

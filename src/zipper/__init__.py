@@ -46,6 +46,7 @@ from zipper.engine import (
     zipper_upsert,
 )
 from zipper.lookup import Lookup, LookupVerdict
+from zipper.normalizer import DefaultNormalizer, Normalizer
 from zipper.router import (
     AssessInputs,
     HaikuRouter,
@@ -87,6 +88,9 @@ __all__ = [
     # lookup
     "Lookup",
     "LookupVerdict",
+    # normalizer
+    "Normalizer",
+    "DefaultNormalizer",
     # storage
     "Storage",
     "MemoryStorage",

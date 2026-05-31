@@ -31,7 +31,6 @@ from zipper.config import (
 from zipper.types import (
     GlobalCanonicalColumn,
     RoutingVerdict,
-    ZipperingDataType,
     ZipperingSchemaRow,
 )
 
@@ -82,7 +81,7 @@ class AssessInputs:
     pkey: str
     source: str
     source_column: str
-    source_data_type: ZipperingDataType
+    source_data_type: str  # canonical set: ZipperingDataType; projects may extend
     source_description: str | None
     source_samples: list[Any]
     candidates_global: list[GlobalCanonicalColumn] = field(default_factory=list)

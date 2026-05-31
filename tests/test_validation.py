@@ -37,9 +37,12 @@ def test_iso_occurred_at_with_z_accepted():
     assert row.occurred_at == "2026-05-28T00:00:00Z"
 
 
-def test_invalid_data_type_rejected():
-    with pytest.raises(ValidationError):
-        IngestValue(value=1, source_data_type="not-a-type")
+def test_custom_data_type_accepted():
+    # Data-type fields are str, not a closed Literal: a consuming project can
+    # register its own coercers and declare domain types (e.g. a healthcare
+    # port adding "quantity_with_unit") without forking the core models.
+    val = IngestValue(value=1, source_data_type="quantity_with_unit")
+    assert val.source_data_type == "quantity_with_unit"
 
 
 def test_valid_row_accepted():

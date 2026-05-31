@@ -17,14 +17,12 @@ from typing import Any, Protocol, runtime_checkable
 
 from pydantic import BaseModel
 
-from zipper.types import ZipperingDataType
-
 
 class LookupVerdict(BaseModel):
     """A confident, rule-based match from the deterministic tier."""
 
     canonical_column: str
-    data_type: ZipperingDataType
+    data_type: str  # canonical set: ZipperingDataType; projects may extend
     confidence: float = 1.0
     matched_on: str  # free-form: e.g. "column_name", "sample_value"
     reason: str

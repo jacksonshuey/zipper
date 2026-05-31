@@ -20,14 +20,14 @@ import asyncio
 from dataclasses import dataclass
 from typing import Any
 
-from zipper.coercions import UnsafeCoercion, normalize
+from zipper.coercions import UnsafeCoercion
 from zipper.lookup import Lookup
+from zipper.normalizer import DefaultNormalizer, Normalizer
 from zipper.router import AssessInputs, Router
 from zipper.storage import Storage
 from zipper.types import (
     IngestRow,
     ZipperedSignalRow,
-    ZipperingDataType,
     ZipperingDecisionRow,
 )
 
@@ -45,9 +45,11 @@ async def zipper_upsert(
     storage: Storage,
     router: Router,
     lookup: Lookup | None = None,
+    normalizer: Normalizer | None = None,
 ) -> ZipperUpsertResult:
     """Ingest one source row into the zippering pipeline."""
     workspace_key = row.workspace_key
+    active_normalizer: Normalizer = normalizer or DefaultNormalizer()
 
     globals_list, existing_schema = await asyncio.gather(
         asyncio.to_thread(storage.load_globals, workspace_key),
@@ -154,7 +156,7 @@ async def zipper_upsert(
                             ),
                             None,
                         )
-                        canonical_data_type: ZipperingDataType = (
+                        canonical_data_type: str = (
                             global_match.data_type
                             if global_match is not None
                             else ingest_val.source_data_type
@@ -186,7 +188,7 @@ async def zipper_upsert(
             (g for g in globals_list if g.name == decision.canonical_name),
             None,
         )
-        target_data_type: ZipperingDataType = (
+        target_data_type: str = (
             schema_match.data_type
             if schema_match is not None
             else (
@@ -197,8 +199,12 @@ async def zipper_upsert(
         )
 
         try:
-            normalized_value = normalize(
-                ingest_val.value, ingest_val.source_data_type, target_data_type
+            normalized_value = active_normalizer.normalize(
+                ingest_val.value,
+                ingest_val.source_data_type,
+                target_data_type,
+                target_schema=schema_match,
+                target_global=global_match,
             )
             if decision.canonical_name in canonical_columns:
                 # Two source columns in THIS row routed to the same canonical

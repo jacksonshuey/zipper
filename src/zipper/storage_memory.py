@@ -240,7 +240,7 @@ class MemoryStorage:
                 id=_new_uuid(),
                 workspace_key=workspace_key,
                 name=name,
-                data_type=data_type,  # type: ignore[arg-type]
+                data_type=data_type,
                 description=description,
                 semantic_tags=semantic_tags or [],
                 created_at=_now_iso(),
